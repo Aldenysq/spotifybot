@@ -58,6 +58,7 @@ async function currentTrack(msg) {
     await msg.reply.photo(img);
   } catch (error) {
     msg.reply.text('No active session');
+    console.log(error);
   }
   
   

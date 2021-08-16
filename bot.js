@@ -16,8 +16,9 @@ async function register(msg) {
     return;
   }
   const link = spotify.getLink();
-  await msg.reply.text('Hello, in order for me to work, please authorize via spotify (go to link)')
+  await msg.reply.text('Hello, in order for me to work, please authorize via spotify (go to link)');
   await msg.reply.text(link);
+  db.linkGenerated(username);
 }
 bot.on('/register', register);
 

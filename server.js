@@ -8,7 +8,7 @@ const bot = require('./bot');
 app.get('/authorize', (req, res) => {
   const code = req.query.code;
   spotify.registerUser(code);
-  console.log('new user registered');
+  console.log('new user registered via link');
   res.send('Success');
 })
 

@@ -5,7 +5,7 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 const db = client.db("data");
 const collection = db.collection("users");
 
-async function addUser(username, access_token, refresh_token) {
+async function addUser(username, refresh_token) {
   await collection.insertOne({
   	'username' : username,
   	'refresh_token' : refresh_token
@@ -23,6 +23,17 @@ async function isRegistered(username) {
 	return (users.length > 0);
 }
 
+async function linkGenerated(username) {
+  const collectionLinks = db.collection('links');
+  await collectionLinks.insertOne({'username' : username});
+}
+
+async function getLatestUsername() {
+  const collectionLinks = db.collection('links');
+  const data = await collectionLinks.find({}).toArray();
+  return data[data.length - 1].username;
+}
+
 
 async function main() {
   await client.connect();
@@ -33,5 +44,7 @@ main();
 module.exports = {
   addUser,
   retrieveUserData,
-  isRegistered
+  isRegistered,
+  linkGenerated,
+  getLatestUsername
 };

@@ -27,7 +27,9 @@ async function registerUser(code){
   const access_token = data.body['access_token'];
   const refresh_token = data.body['refresh_token'];
 
-  await db.addUser('danqp', access_token, refresh_token);
+  const username = await db.getLatestUsername();
+
+  await db.addUser(username, refresh_token);
 
   // Set the access token on the API object to use it in later calls
   // spotifyApi.setAccessToken(data.body['access_token']);

@@ -419,7 +419,7 @@ async function getRecommendations5lastTracks(msg, limit) {
   }
   await bot.sendMessage(msg.from.id, 'I added the tracks to your listening queue. Enjoy!');
 }
-// msg.reply.text('5top tracks', {replyMarkup: 'hide'});
+
 async function getRecommendations5topTracks(msg, limit) {
   const username = msg.from.username;
   let topTracks = await spotify.getMyTopTracks(username, 5); //based on 5 last tracks
@@ -525,9 +525,16 @@ async function help(msg) {
   replyText += `/getRecommendations {<limit>} *- get recommended tracks; adds tracks to your listening queue; limit ranges from 1 to ${maxRecommendations}; by default is 3.*\n`;
   replyText += "Arguments in _{}_ are *optional*\n";
   replyText += "_Note, if you are asking too many queries, bot might not respond for some time due to limitations from spotify and telegram api_\n";
-  msg.reply.text(replyText, {parseMode: 'Markdown' });
+  return msg.reply.text(replyText, {parseMode: 'Markdown' });
 }
 bot.on('/help', help);
+
+async function help(msg) {
+  const username = msg.from.username;
+  let replyText = "Please type /help to start using me";
+  return msg.reply.text(replyText, {parseMode: 'Markdown' });
+}
+bot.on('/start', help);
 
 bot.start();
 

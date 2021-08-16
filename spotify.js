@@ -11,7 +11,7 @@ const realUri = 'https://tspotybot.herokuapp.com/authorize';
 var credentials = {
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_SECRET,
-  redirectUri: testUri
+  redirectUri: realUri
 };
 
 const spotifyApi = new SpotifyWebApi(credentials);

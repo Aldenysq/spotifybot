@@ -14,7 +14,7 @@ var credentials = {
   redirectUri: realUri
 };
 
-const spotifyApi = new SpotifyWebApi(credentials);
+let spotifyApi = new SpotifyWebApi(credentials);
 
 function getLink() {
   return spotifyApi.createAuthorizeURL(scopes);

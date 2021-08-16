@@ -1,11 +1,13 @@
 require('dotenv').config()
 const TeleBot = require('telebot');
+
+const db = require('./db');
+const spotify = require('./spotify');
+
 const bot = new TeleBot({
   token: process.env.TELEGRAM_BOT_TOKEN,
-  usePlugins: ['commandButton']
+  usePlugins: ['commandButton'],
 });
-const db = require('./db');
-const spotify = require('./spotify')
 
 async function register(msg) {
   const username = msg.from.username;
@@ -78,7 +80,7 @@ async function topArtists(msg) {
   let topArtists = await spotify.getMyTopArtists(username, limit);
   topArtists = topArtists.body.items;
   for (let i = limit - 1; i >= 0; i--) {
-    let replyText = "Your *#" + (i+1) + " *favourite artist is *" + topArtists[i].name;
+    let replyText = "Your *#" + (i+1) + " *top artist is *" + topArtists[i].name;
     replyText += "* with _" + topArtists[i].followers.total + "_ subscribers\n";
     replyText += "The artist's genres are: ";
     for (genre of topArtists[i].genres) {
@@ -114,7 +116,7 @@ async function topTracks(msg) {
   let topTracks = await spotify.getMyTopTracks(username, limit);
   topTracks = topTracks.body.items;
   for (let i = limit - 1; i >= 0; i--) {
-    let replyText = "Your *#" + (i+1) + " *favourite track is *" + topTracks[i].name;
+    let replyText = "Your *#" + (i+1) + " *top track is *" + topTracks[i].name;
     replyText += "* _by_ ";
     for (artist of topTracks[i].artists) {
       replyText += '*' + artist.name + "*, ";
@@ -274,7 +276,7 @@ async function transferPlayback(msg) {
       // if (device.is_active) 
       //   buttonText += 'ACTIVE ';
       buttonText += device.type + " " + device.name;
-      const callbackData = device.id;
+      const callbackData = 'T' + device.id; // T is the key for callbackQuery for transferPlayback
       buttonsArray.push([bot.inlineButton(buttonText, {callback: callbackData})]);
     }
     const replyMarkup = bot.inlineKeyboard(buttonsArray);
@@ -283,13 +285,6 @@ async function transferPlayback(msg) {
 
 }
 bot.on('/transferPlayback', transferPlayback);
-
-bot.on('callbackQuery', async (msg) => {
-    const username = msg.from.username;
-    await spotify.trasferPlayback(username, msg.data);
-    bot.sendMessage(msg.from.id, 'Transfered your playback!')
-    bot.answerCallbackQuery(msg.id);
-});
 
 async function seek(msg) {
   const username = msg.from.username;
@@ -352,6 +347,7 @@ async function previous(msg) {
 }
 bot.on('/previous', previous);
 
+const maxRecommendations = 15; //better not to make over 30, otherwise telegram api would swear
 async function getRecommendations(msg) {
   const username = msg.from.username;
   if (!(await db.isRegistered(username))) {
@@ -359,6 +355,7 @@ async function getRecommendations(msg) {
     return;
   }
   let text = msg.text.split(' ');
+  // get number of tracks to be recommended
   let limit = 3;
   if (text.length > 1) {
     if (isNaN(text[1])) {
@@ -366,16 +363,44 @@ async function getRecommendations(msg) {
       return;
     }
     limit = parseInt(text[1]);
-    limit = Math.min(limit, 10);
+    limit = Math.min(limit, maxRecommendations);
     limit = Math.max(limit, 1);
   }
+
+
+  // ask user based on what they want to get recommendations
+  // options: 5 last listened tracks, 5 top tracks, 5 top artists
+
+  // Inline keyboard markup
+    const replyMarkup = bot.inlineKeyboard([
+        [
+            // First row with command callback button
+            bot.inlineButton('5 last listened tracks', {callback: 'Q' + limit}) // key for callbackQuery is 'Q'
+        ],
+        [
+            // Second row with regular command button
+            bot.inlineButton('5 top tracks', {callback: 'W' + limit}) // key for callbackQuery is 'W'
+        ],
+        [
+            // Second row with regular command button
+            bot.inlineButton('5 top artists', {callback: 'E' + limit}) // key for callbackQuery is 'E'
+        ]
+    ]);
+
+    // send keyboard buttons
+    return bot.sendMessage(msg.from.id, 'Please choose based on what you want to get your recommended tracks', {replyMarkup});
+}
+bot.on('/getRecommendations', getRecommendations);
+
+async function getRecommendations5lastTracks(msg, limit) {
+  const username = msg.from.username;
   let previousTracks = await spotify.recentlyPlayedTracks(username, 5);
   previousTracks = previousTracks.body.items;
   let seed_tracks = [];
   for (track of previousTracks) {
     seed_tracks.push(track.track.id);
   }
-  let recommendedTracks = await spotify.getRecommendations(username, seed_tracks, limit);
+  let recommendedTracks = await spotify.getRecommendations(username, limit, seed_tracks=seed_tracks);
   recommendedTracks = recommendedTracks.body.tracks;
   for (track of recommendedTracks) {
     let replyText = '';
@@ -386,16 +411,93 @@ async function getRecommendations(msg) {
     replyText += ' _';
     replyText += track.name;
     replyText += '_';
-    await msg.reply.text(replyText, {parseMode: 'Markdown'});
-    await msg.reply.photo(track.album.images[0].url);
+    await bot.sendMessage(msg.from.id, replyText, {parseMode: 'Markdown'});
+    await bot.sendPhoto(msg.from.id, track.album.images[0].url);
     if (track.preview_url != null)
-      await msg.reply.audio(track.preview_url);
+      await bot.sendAudio(msg.from.id, track.preview_url);
     await spotify.addToQueue(username, track.uri);
   }
-  await msg.reply.text('I added the tracks to your listening queue. Enjoy!');
-  
+  await bot.sendMessage(msg.from.id, 'I added the tracks to your listening queue. Enjoy!');
 }
-bot.on('/getRecommendations', getRecommendations);
+// msg.reply.text('5top tracks', {replyMarkup: 'hide'});
+async function getRecommendations5topTracks(msg, limit) {
+  const username = msg.from.username;
+  let topTracks = await spotify.getMyTopTracks(username, 5); //based on 5 last tracks
+  topTracks = topTracks.body.items;
+  let seed_tracks = [];
+  for (track of topTracks) {
+    seed_tracks.push(track.id);
+  }
+  let recommendedTracks = await spotify.getRecommendations(username, limit, seed_tracks=seed_tracks);
+  recommendedTracks = recommendedTracks.body.tracks;
+  for (track of recommendedTracks) {
+    let replyText = '';
+    for (artist of track.artists) {
+      replyText += '*' + artist.name + '*, ';
+    }
+    replyText = replyText.slice(0, -2);
+    replyText += ' _';
+    replyText += track.name;
+    replyText += '_';
+    await bot.sendMessage(msg.from.id, replyText, {parseMode: 'Markdown'});
+    await bot.sendPhoto(msg.from.id, track.album.images[0].url);
+    if (track.preview_url != null)
+      await bot.sendAudio(msg.from.id, track.preview_url);
+    await spotify.addToQueue(username, track.uri);
+  }
+  await bot.sendMessage(msg.from.id, 'I added the tracks to your listening queue. Enjoy!');
+}
+
+async function getRecommendations5topArtists(msg, limit) {
+  const username = msg.from.username;
+  let topArtists = await spotify.getMyTopArtists(username, 5);
+  topArtists = topArtists.body.items;
+  let seed_artists = [];
+  for (artist of topArtists) {
+    seed_artists.push(artist.id);
+  }
+  let recommendedTracks = await spotify.getRecommendations(username, limit, [], seed_artists=seed_artists);
+  recommendedTracks = recommendedTracks.body.tracks;
+  for (track of recommendedTracks) {
+    let replyText = '';
+    for (artist of track.artists) {
+      replyText += '*' + artist.name + '*, ';
+    }
+    replyText = replyText.slice(0, -2);
+    replyText += ' _';
+    replyText += track.name;
+    replyText += '_';
+    await bot.sendMessage(msg.from.id, replyText, {parseMode: 'Markdown'});
+    await bot.sendPhoto(msg.from.id, track.album.images[0].url);
+    if (track.preview_url != null)
+      await bot.sendAudio(msg.from.id, track.preview_url);
+    await spotify.addToQueue(username, track.uri);
+  }
+  await bot.sendMessage(msg.from.id, 'I added the tracks to your listening queue. Enjoy!');
+}
+
+// Button callback
+bot.on('callbackQuery', async (msg) => {
+    const username = msg.from.username;
+    const msgData = msg.data.substring(1);
+    // checking key for callbackQuery
+    if (msg.data[0] == 'T') {
+      // transfer callback
+      await spotify.trasferPlayback(username, msgData);
+      await bot.sendMessage(msg.from.id, 'Transfered your playback!');
+    } else if (msg.data[0] == 'Q') {
+      // recommend based on 5 last tracks
+      await getRecommendations5lastTracks(msg, parseInt(msgData));
+    } else if (msg.data[0] == 'W') {
+      // recommend based on 5 top tracks
+      await getRecommendations5topTracks(msg, parseInt(msgData));
+    } else if (msg.data[0] == 'E') {
+      // recommend based on 5 top artists
+      await getRecommendations5topArtists(msg, parseInt(msgData));
+    }
+    bot.answerCallbackQuery(msg.id);
+    
+});
 
 
 async function help(msg) {
@@ -420,7 +522,7 @@ async function help(msg) {
   replyText += "/seek <min:sec> *- seek to position in currently playing track*\n";
   replyText += "/next *- skip current track*\n";
   replyText += "/previous *- play previous track*\n";
-  replyText += "/getRecommendations {<limit>} *- get recommended tracks based on your last five listened tracks; adds tracks to your listening queue; limit ranges from 1 to 10; by default is 3.*\n";
+  replyText += `/getRecommendations {<limit>} *- get recommended tracks; adds tracks to your listening queue; limit ranges from 1 to ${maxRecommendations}; by default is 3.*\n`;
   replyText += "Arguments in _{}_ are *optional*\n";
   replyText += "_Note, if you are asking too many queries, bot might not respond for some time due to limitations from spotify and telegram api_\n";
   msg.reply.text(replyText, {parseMode: 'Markdown' });
@@ -428,8 +530,6 @@ async function help(msg) {
 bot.on('/help', help);
 
 bot.start();
-
-
 
 
 function sleep(seconds) {

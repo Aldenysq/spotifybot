@@ -11,7 +11,7 @@ const realUri = 'https://tspotybot.herokuapp.com/authorize';
 var credentials = {
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_SECRET,
-  redirectUri: realUri
+  redirectUri: testUri
 };
 
 const spotifyApi = new SpotifyWebApi(credentials);
@@ -108,13 +108,14 @@ async function previous(username) {
   await spotifyApi.skipToPrevious();
 }
 
-async function getRecommendations(username, seed_tracks, limit) {
+async function getRecommendations(username, limit, seed_tracks=[], seed_artists=[]) {
   await setAccessToken(username);
   // let data = await spotifyApi.searchArtists('Платина'); //'4TzGOY9RpErzedN02w8Boh'
   // console.log(data.body.artists.items);
   // return;
   let options = {
     seed_tracks: seed_tracks,
+    seed_artists: seed_artists,
     limit: limit
   };
   return await spotifyApi.getRecommendations(options);

@@ -529,12 +529,12 @@ async function help(msg) {
 }
 bot.on('/help', help);
 
-async function help(msg) {
+async function start(msg) {
   const username = msg.from.username;
   let replyText = "Please type /help to start using me";
   return msg.reply.text(replyText, {parseMode: 'Markdown' });
 }
-bot.on('/start', help);
+bot.on('/start', start);
 
 bot.start();
 

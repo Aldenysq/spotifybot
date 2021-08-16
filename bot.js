@@ -44,18 +44,23 @@ async function currentTrack(msg) {
     msg.reply.text('You are not registered. Please, type /register first');
     return;
   }
-
-  const currentTrack = await spotify.currentTrack(username);
-  const trackName = currentTrack.body.item.name;
-  const artists = currentTrack.body.item.artists;
-  const img = currentTrack.body.item.album.images[0].url;
-  let replyText = "You are listening to " + trackName + " by ";
-  for (artist of artists) {
-    replyText += artist.name + ", ";
+  try {
+    const currentTrack = await spotify.currentTrack(username);
+    const trackName = currentTrack.body.item.name;
+    const artists = currentTrack.body.item.artists;
+    const img = currentTrack.body.item.album.images[0].url;
+    let replyText = "You are listening to " + trackName + " by ";
+    for (artist of artists) {
+      replyText += artist.name + ", ";
+    }
+    replyText = replyText.slice(0, -2);
+    await msg.reply.text(replyText);
+    await msg.reply.photo(img);
+  } catch (error) {
+    msg.reply.text('No active session');
   }
-  replyText = replyText.slice(0, -2);
-  await msg.reply.text(replyText);
-  await msg.reply.photo(img);
+  
+  
 }
 bot.on('/currentTrack', currentTrack);
 
@@ -533,7 +538,7 @@ bot.on('/help', help);
 async function start(msg) {
   const username = msg.from.username;
   let replyText = "Please type /help to start using me";
-  return msg.reply.text(replyText, {parseMode: 'Markdown' });
+  return msg.reply.text(replyText);
 }
 bot.on('/start', start);
 

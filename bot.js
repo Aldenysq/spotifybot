@@ -16,7 +16,7 @@ async function register(msg) {
     return;
   }
   const link = spotify.getLink();
-  await msg.reply.text('Hello, in order for me to work, please authorize via spotify (go to link)');
+  await msg.reply.text('Hello, ' + username + '!In order for me to work, please authorize via spotify (go to link)');
   await msg.reply.text(link);
   db.linkGenerated(username);
 }
@@ -505,7 +505,7 @@ bot.on('callbackQuery', async (msg) => {
 
 async function help(msg) {
   const username = msg.from.username;
-  let replyText = "Hello, " + username +'! I am Spotify bot.\n';
+  let replyText = "Hello! I am Spotify bot.\n";
   replyText += "Here you can find most of the functionality of regular Spotify app *plus* some other fancy commands\n";
   replyText += "Before using me, please register with '/register' command\n";
   replyText += "*Some commands might not work if you are not premium user of Spotify.*\n";

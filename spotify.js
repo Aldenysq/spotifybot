@@ -14,14 +14,16 @@ var credentials = {
   redirectUri: realUri
 };
 
-let spotifyApi = new SpotifyWebApi(credentials);
+let spotifyApi;
 
 function getLink() {
+  spotifyApi = new SpotifyWebApi(credentials);
   return spotifyApi.createAuthorizeURL(scopes);
 }
 
 
 async function registerUser(code){
+  spotifyApi = new SpotifyWebApi(credentials);
   const data = await spotifyApi.authorizationCodeGrant(code);
 
   const access_token = data.body['access_token'];
@@ -37,6 +39,7 @@ async function registerUser(code){
 }
 
 async function setAccessToken(username) {
+  spotifyApi = new SpotifyWebApi(credentials);
   const userData = await db.retrieveUserData(username);
   spotifyApi.setRefreshToken(userData['refresh_token']);
   const spotifyData = await spotifyApi.refreshAccessToken()
